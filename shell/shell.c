@@ -33,7 +33,8 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
 {
         int former_space = -1;
         *number_of_args = 0;
-        for (int i = 0; i < strlen(input_string) + 1; ++i){
+        int i;
+        for (i = 0; i < strlen(input_string) + 1; ++i){
                 if (input_string[i] == ' ' || i == strlen(input_string)){
                         char *arg = (char *)malloc(i - former_space);
                         args[*number_of_args] = arg;
@@ -88,8 +89,8 @@ int main(int argc, char **argv)
                         printf("%s\n", "Fork Failed");
                         continue; 
                 }
-
-                for (int i = 0; i < number_of_args; ++i){
+                int i;
+                for (i = 0; i < number_of_args; ++i){
                             free(args[i]);
                             args[i] = NULL;
                 }
