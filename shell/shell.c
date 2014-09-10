@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAX_NUMBER_OF_ARGS 500
 
@@ -60,17 +61,37 @@ int main(int argc, char **argv)
                 if (!strcmp(input_string, "exit")){
                         break;
                 }
-
+                /*
+                 * parsing
+                 */
                 int number_of_args;
                 char *args[MAX_NUMBER_OF_ARGS];
-                parse(input_string, MAX_NUMBER_OF_ARGS, args, &number_of_args);
-
-                for (int i = 0; i < number_of_args; ++i){
-                    printf("%s\n", args[i]);
+                int parse_return = parse(input_string, MAX_NUMBER_OF_ARGS, args, &number_of_args);
+                if (parse_return != 0){
+                        printf("%s\n", "Input Parsing Failed");
+                        continue;
+                }
+                /*
+                 * execute
+                 */
+                int *return_status = malloc(1 * sizeof(int));
+                int pid = fork();
+                if (pid == 0){
+                        execvp(args[0], args);
+                        break;
+                }else if (pid > 0){
+                        wait(return_status);
+                        printf("%s\n", "hello world!!");
+                        
+                        continue;
+                }else{
+                        printf("%s\n", "Fork Failed");
+                        continue; 
                 }
 
                 for (int i = 0; i < number_of_args; ++i){
                             free(args[i]);
+                            args[i] = NULL;
                 }
                 free(input_string);
                 input_string = NULL;
