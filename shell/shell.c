@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_NUMBER_OF_ARGS 500
+
 char *read_line()
 {
         char *input_string = NULL;
@@ -26,17 +28,49 @@ char *read_line()
         return input_string;
 }
 
+int parse(char *input_string, int max_number_of_args, char *args[], int *number_of_args)
+{
+        int former_space = -1;
+        *number_of_args = 0;
+        for (int i = 0; i < strlen(input_string) + 1; ++i){
+                if (input_string[i] == ' ' || i == strlen(input_string)){
+                        char *arg = (char *)malloc(i - former_space);
+                        args[*number_of_args] = arg;
+                        (*number_of_args)++;
+                        strncpy (arg, input_string + former_space + 1, i - former_space - 1);
+                        arg[i - former_space - 1] = '\0';
+                        former_space = i;
+                }
+                if (*number_of_args > MAX_NUMBER_OF_ARGS){
+                        return -1;
+                }
+        }
+        return 0;
+}
+
 int main(int argc, char **argv) 
 {
         while (1){
                 printf("$");
-                char * input_string = NULL;
+                char *input_string = NULL;
                 input_string = read_line();
                 /*
                  * exit case
                  */
                 if (!strcmp(input_string, "exit")){
                         break;
+                }
+
+                int number_of_args;
+                char *args[MAX_NUMBER_OF_ARGS];
+                parse(input_string, MAX_NUMBER_OF_ARGS, args, &number_of_args);
+
+                for (int i = 0; i < number_of_args; ++i){
+                    printf("%s\n", args[i]);
+                }
+
+                for (int i = 0; i < number_of_args; ++i){
+                            free(args[i]);
                 }
                 free(input_string);
                 input_string = NULL;
