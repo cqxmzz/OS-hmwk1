@@ -20,10 +20,18 @@ char *read_line()
                 input_length += temp_length;
                 if (input_string == NULL) {
                         input_string = malloc((input_length + 1) * sizeof(char));
+                        if (input_string == NULL){
+                                fprintf(stderr, "error: %s\n", "Cannot require space to store the command, perhaps too long?");
+                                return NULL;
+                        }
                         input_string[0] = '\0';
                 }
                 else{
                         input_string = realloc(input_string, input_length + 1);
+                        if (input_string == NULL){
+                                fprintf(stderr, "error: %s\n", "Cannot require space to store the command, perhaps too long?");
+                                return NULL;
+                        }
                 }
                 strcat(input_string, temp_buffer);
         } while (temp_length == chunk - 1 && temp_buffer[chunk - 2] != '\n');
@@ -39,6 +47,10 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
         for (i = 0; i < strlen(input_string) + 1; ++i){
                 if (input_string[i] == ' ' || i == strlen(input_string)){
                         char *arg = (char *)malloc(i - former_space);
+                        if (arg == NULL){
+                                fprintf(stderr, "error: %s\n", "Cannot require space to store the argument, perhaps too long?");
+                                return -1;
+                        }
                         args[*number_of_args] = arg;
                         (*number_of_args)++;
                         strncpy (arg, input_string + former_space + 1, i - former_space - 1);
@@ -46,6 +58,7 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
                         former_space = i;
                 }
                 if (*number_of_args == MAX_NUMBER_OF_ARGS){
+                        fprintf(stderr, "error: %s\n", "Too many arguments");
                         return -1;
                 }
         }
@@ -55,20 +68,24 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
 
 int main(int argc, char **argv) 
 {
+        int number_of_paths = 0;
+        char **paths = NULL;
         while (1){
                 printf("$");
                 char *input_string = NULL;
                 input_string = read_line();
+                if (input_string == NULL)
+                        continue;
                 /*
                  * exit case
                  */
-                if (!strcmp(input_string, "exit")){
+                if (!strcmp(input_string, "exit"))
                         exit(EXIT_SUCCESS);
-                }
-
-                if (!strcmp(input_string, "")){
+                /*
+                 * empty line
+                 */
+                if (!strcmp(input_string, ""))
                         continue;
-                }
                 /*
                  * parsing
                  */
@@ -76,20 +93,46 @@ int main(int argc, char **argv)
                 char *args[MAX_NUMBER_OF_ARGS];
                 int parse_return = parse(input_string, MAX_NUMBER_OF_ARGS, args, &number_of_args);
                 if (parse_return != 0){
-                        fprintf(stderr, "error: %s\n", "Too many arguments");
                         continue;
+                }
+                /*
+                 * cd
+                 */
+                if (!strcmp(args[0], "cd")){
+                        if (chdir(args[1]) == 0)
+                                continue;
+                        else{
+                               fprintf(stderr, "error: %s\n", strerror(errno));                                 
+                               continue;
+                       }
+                }
+                /*
+                 * paths
+                 */
+                if (!strcmp(args[0], "path")){
+                        if (args[1] == NULL){
+                                int i;
+                                for (i = 0; i < number_of_paths; ++i)
+                                        printf("%s\n", paths[i]);
+                        }
+                        if (!strcmp(args[1], "+"))
+                        {
+
+                        }
+                        if (!strcmp(args[1], "-"))
                 }
                 /*
                  * execute
                  */
-                int return_status = -1;
                 int pid = fork();
                 if (pid == 0){
-                        return_status = execv(args[0], args);
-                        if (return_status == -1){
+                        if (execv(args[0], args) == -1)
+                        {
                                 fprintf(stderr, "error: %s\n", strerror(errno));
+                                exit(EXIT_FAILURE);
                         }
-                        exit(EXIT_FAILURE);
+                        else
+                                exit(EXIT_SUCCESS);
                 }else if (pid > 0){
                         wait(0);
                 }else{
@@ -101,6 +144,10 @@ int main(int argc, char **argv)
                             free(args[i]);
                             args[i] = NULL;
                 }
+                /*
+                 * free memory
+                 */
+                free(args);
                 free(input_string);
                 input_string = NULL;
         }
