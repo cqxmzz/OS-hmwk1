@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define MAX_NUMBER_OF_ARGS 500
 
@@ -44,10 +45,11 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
                         arg[i - former_space - 1] = '\0';
                         former_space = i;
                 }
-                if (*number_of_args > MAX_NUMBER_OF_ARGS){
+                if (*number_of_args == MAX_NUMBER_OF_ARGS){
                         return -1;
                 }
         }
+        args[*number_of_args] = NULL;
         return 0;
 }
 
@@ -61,7 +63,11 @@ int main(int argc, char **argv)
                  * exit case
                  */
                 if (!strcmp(input_string, "exit")){
-                        break;
+                        exit(EXIT_SUCCESS);
+                }
+
+                if (!strcmp(input_string, "")){
+                        continue;
                 }
                 /*
                  * parsing
@@ -70,24 +76,24 @@ int main(int argc, char **argv)
                 char *args[MAX_NUMBER_OF_ARGS];
                 int parse_return = parse(input_string, MAX_NUMBER_OF_ARGS, args, &number_of_args);
                 if (parse_return != 0){
-                        printf("%s\n", "Input Parsing Failed");
+                        fprintf(stderr, "error: %s\n", "Too many arguments");
                         continue;
                 }
                 /*
                  * execute
                  */
-                int *return_status = malloc(1 * sizeof(int));
+                int return_status = -1;
                 int pid = fork();
                 if (pid == 0){
-                        execvp(args[0], args);
-                        break;
+                        return_status = execv(args[0], args);
+                        if (return_status == -1){
+                                fprintf(stderr, "error: %s\n", strerror(errno));
+                        }
+                        exit(EXIT_FAILURE);
                 }else if (pid > 0){
-                        wait(return_status);
-                        printf("%s\n", "hello world!!");
-                        
-                        continue;
+                        wait(0);
                 }else{
-                        printf("%s\n", "Fork Failed");
+                        fprintf(stderr, "error: %s\n", strerror(errno));
                         continue; 
                 }
                 int i;
