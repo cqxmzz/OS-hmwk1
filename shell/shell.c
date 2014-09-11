@@ -179,7 +179,7 @@ int execute(char **args)
 {
         int pid = fork();
         if (pid == 0){
-                if (execv(args[0], args, "/bin/") == -1)
+                if (execve(args[0], args, paths) == -1)
                 {
                         fprintf(stderr, "error: %s\n", strerror(errno));
                         return -1;
