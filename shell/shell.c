@@ -90,7 +90,7 @@ int show_paths()
         for (i = 0; i < number_of_paths - 1; ++i)
                 printf("%s:", paths[i]);
         if (number_of_paths > 0)
-                printf("%s", paths[number_of_paths - 1]);
+                printf("%s\n", paths[number_of_paths - 1]);
         return 0;
 }
 
@@ -175,24 +175,59 @@ int delete_path(char * path)
         return 0;
 }
 
-int execute(char **args)
+int execute(char *file_name, char **args)
 {
+        printf("%s\n", file_name);
         int pid = fork();
         if (pid == 0){
-                if (execve(args[0], args, paths) == -1)
+                if (execv(file_name, args) == -1)
+                {
+                        fprintf(stderr, "error: %s\n", strerror(errno));
+                        exit(-1);
+                }
+                else
+                        exit(0);
+        }else if (pid > 0){
+                int child_status;
+                int wait_return = wait(&child_status);
+                if (wait_return > 0){
+                        return WEXITSTATUS(child_status);
+                }else
                 {
                         fprintf(stderr, "error: %s\n", strerror(errno));
                         return -1;
                 }
-                else
-                        return 0;
-        }else if (pid > 0){
-                wait(0);
-                return 0;
         }else{
                 fprintf(stderr, "error: %s\n", strerror(errno));
                 return -1; 
         }
+}
+
+int find_file_to_exec(char **args)
+{
+        char *file_name = args[0];
+        if (access(file_name, X_OK) != -1){
+                execute(file_name, args);
+                return 0;
+        }else{
+                int i;
+                for (i = 0; i < number_of_paths; ++i){
+                        char *path_and_file_name = malloc((strlen(paths[i]) + strlen(file_name) + 1) * sizeof(char));
+                        if (path_and_file_name == NULL){
+                                fprintf(stderr, "error: %s\n", "Cannot require space to store the path, perhaps filename too long?");
+                        }
+                        strcat(path_and_file_name, paths[i]);
+                        strcat(path_and_file_name, "/");
+                        strcat(path_and_file_name, file_name);
+                        if (access(path_and_file_name, X_OK) != -1){
+                                file_name = path_and_file_name;
+                                execute(file_name, args);
+                                free(file_name);
+                                return 0;
+                        }
+                }
+        }
+        return -1;
 }
 
 int main(int argc, char **argv) 
@@ -247,7 +282,10 @@ int main(int argc, char **argv)
                 /*
                  * execute
                  */
-                execute(args);
+                if (find_file_to_exec(args) != 0){
+                        errno = ENOENT;
+                        fprintf(stderr, "error: %s\n", strerror(errno));  
+                }
                 /*
                  * free memory
                  */
