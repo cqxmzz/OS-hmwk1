@@ -27,7 +27,7 @@ char *read_line()
                 if (input_string == NULL) {
                         input_string = malloc((input_length + 1) * sizeof(char));
                         if (input_string == NULL){
-                                fprintf(stderr, "error: %s\n", "Cannot require space to store the command, perhaps too long?");
+                                fprintf(stderr, "error: %s\n", strerror(errno));
                                 return NULL;
                         }
                         input_string[0] = '\0';
@@ -35,7 +35,7 @@ char *read_line()
                 else{
                         input_string = realloc(input_string, input_length + 1);
                         if (input_string == NULL){
-                                fprintf(stderr, "error: %s\n", "Cannot require space to store the command, perhaps too long?");
+                                fprintf(stderr, "error: %s\n", strerror(errno));
                                 return NULL;
                         }
                 }
@@ -54,7 +54,7 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
                 if (input_string[i] == ' ' || i == strlen(input_string)){
                         char *arg = (char *)malloc((i - former_space) * sizeof(char));
                         if (arg == NULL){
-                                fprintf(stderr, "error: %s\n", "Cannot require space to store the argument, perhaps too long?");
+                                fprintf(stderr, "error: %s\n", strerror(errno));
                                 return -1;
                         }
                         args[*number_of_args] = arg;
@@ -63,7 +63,7 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
                         arg[i - former_space - 1] = '\0';
                         former_space = i;
                 }
-                if (*number_of_args == MAX_NUMBER_OF_ARGS){
+                if (*number_of_args == MAX_NUMBER_OF_ARGS - 1){
                         fprintf(stderr, "error: %s\n", "Too many arguments");
                         return -1;
                 }
@@ -115,14 +115,14 @@ int add_path(char * path)
                 paths = (char **)malloc(sizeof(char *));
                 path_capacity = 1;
                 if (paths == NULL){
-                        fprintf(stderr, "error: %s\n", "Cannot require space to store the path, perhaps too many paths?");
+                        fprintf(stderr, "error: %s\n", strerror(errno));
                         return -1;
                 }
         }
         if (number_of_paths != 0 && number_of_paths == path_capacity){
                 char **temp_paths = (char **)malloc(2 * number_of_paths * sizeof (char *));
                 if (paths == NULL){
-                        fprintf(stderr, "error: %s\n", "Cannot require space to store the path, perhaps too many paths?");
+                        fprintf(stderr, "error: %s\n", strerror(errno));
                         return -1;
                 }
                 int i;
@@ -136,7 +136,7 @@ int add_path(char * path)
         }
         paths[number_of_paths] = (char *)malloc(sizeof(char) * strlen(path));
         if (paths[number_of_paths] == NULL){
-                fprintf(stderr, "error: %s\n", "Cannot require space to store the path, perhaps too many paths?");
+                fprintf(stderr, "error: %s\n", strerror(errno));
                 return -1;
         }
         strcpy(paths[number_of_paths], path);
@@ -175,19 +175,39 @@ int delete_path(char * path)
         return 0;
 }
 
-int execute(char *file_name, char **args)
+int execute(char *file_name, char **args, int pipes[][2], int program_count, int program_no)
 {
-        printf("%s\n", file_name);
         int pid = fork();
         if (pid == 0){
+                int pipe_in = -1;
+                int pipe_out = -1;
+                if (program_no != 0){
+                        pipe_in = pipes[program_no - 1][0];
+                        close(fileno(stdin));
+                        dup2(pipe_in, fileno(stdin));
+                }
+                if (program_no != program_count - 1){
+                        pipe_out = pipes[program_no][1];
+                        close(fileno(stdout));
+                        dup2(pipe_out, fileno(stdout));
+                }
+                for (int i = 0; i < program_no - 1; ++i){
+                        if (pipes[i][0] != pipe_in)
+                                close(pipes[i][0]);
+                        if (pipes[i][1] != pipe_out)
+                                close(pipes[i][1]);
+                }
                 if (execv(file_name, args) == -1)
                 {
                         fprintf(stderr, "error: %s\n", strerror(errno));
                         exit(-1);
-                }
-                else
+                }else
                         exit(0);
         }else if (pid > 0){
+                for (int i = 0; i < program_no - 1; ++i){
+                        close(pipes[i][0]);
+                        close(pipes[i][1]);
+                }
                 int child_status;
                 int wait_return = wait(&child_status);
                 if (wait_return > 0){
@@ -203,31 +223,60 @@ int execute(char *file_name, char **args)
         }
 }
 
-int find_file_to_exec(char **args)
+int find_file_to_exec(char **args, int pipes[][2], int program_count, int program_no)
 {
         char *file_name = args[0];
         if (access(file_name, X_OK) != -1){
-                execute(file_name, args);
-                return 0;
+                return execute(file_name, args, pipes, program_count, program_no);
         }else{
                 int i;
                 for (i = 0; i < number_of_paths; ++i){
                         char *path_and_file_name = malloc((strlen(paths[i]) + strlen(file_name) + 1) * sizeof(char));
                         if (path_and_file_name == NULL){
-                                fprintf(stderr, "error: %s\n", "Cannot require space to store the path, perhaps filename too long?");
+                                fprintf(stderr, "error: %s\n", strerror(errno));
                         }
                         strcat(path_and_file_name, paths[i]);
                         strcat(path_and_file_name, "/");
                         strcat(path_and_file_name, file_name);
                         if (access(path_and_file_name, X_OK) != -1){
                                 file_name = path_and_file_name;
-                                execute(file_name, args);
+                                int execute_return = execute(file_name, args, pipes, program_count, program_no);
                                 free(file_name);
-                                return 0;
+                                return execute_return;
                         }
                 }
         }
-        return -1;
+        errno = ENOENT;
+        fprintf(stderr, "error: %s\n", strerror(errno));
+        return -2;
+}
+
+int multi_find_file_to_exec(char **args, int number_of_args)
+{
+        int last_seperate = -1;
+        int program_count = 0;
+        int i;
+        int pipes[500][2];
+        char **program_args[500];
+        for (i = 0; i < number_of_args + 1; ++i){
+                if (i == number_of_args || !strcmp("|", args[i])){
+                        free(args[i]);
+                        args[i] = NULL;
+                        program_args[program_count] = args + last_seperate + 1;
+                        last_seperate = i;
+                        program_count++;
+                }
+        }
+        for (i = 0; i < program_count - 1; ++i){
+                pipe(pipes[i]);
+                //error
+        }
+        for (i = 0; i < program_count; ++i){
+                if (find_file_to_exec(program_args[i], pipes, program_count, i) != 0)
+                        return -1;
+        }
+        //clear pipes
+        return 0;
 }
 
 int main(int argc, char **argv) 
@@ -262,6 +311,7 @@ int main(int argc, char **argv)
                  */
                 if (!strcmp(args[0], "cd")){
                         cd(args[1]);
+                        continue;
                 }
                 /*
                  * paths
@@ -282,10 +332,7 @@ int main(int argc, char **argv)
                 /*
                  * execute
                  */
-                if (find_file_to_exec(args) != 0){
-                        errno = ENOENT;
-                        fprintf(stderr, "error: %s\n", strerror(errno));  
-                }
+                multi_find_file_to_exec(args, number_of_args);
                 /*
                  * free memory
                  */
