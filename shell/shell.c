@@ -191,7 +191,8 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
                         close(fileno(stdout));
                         dup2(pipe_out, fileno(stdout));
                 }
-                for (int i = 0; i < program_no - 1; ++i){
+                int i;
+                for (i = 0; i < program_no - 1; ++i){
                         if (pipes[i][0] != pipe_in)
                                 close(pipes[i][0]);
                         if (pipes[i][1] != pipe_out)
@@ -204,7 +205,8 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
                 }else
                         exit(0);
         }else if (pid > 0){
-                for (int i = 0; i < program_no - 1; ++i){
+                int i
+                for (i = 0; i < program_no - 1; ++i){
                         close(pipes[i][0]);
                         close(pipes[i][1]);
                 }
