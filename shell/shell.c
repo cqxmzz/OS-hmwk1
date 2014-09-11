@@ -205,7 +205,7 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
                 }else
                         exit(0);
         }else if (pid > 0){
-                int i
+                int i;
                 for (i = 0; i < program_no - 1; ++i){
                         close(pipes[i][0]);
                         close(pipes[i][1]);
