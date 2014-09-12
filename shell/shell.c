@@ -243,11 +243,10 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
                         close(pipes[i][1]);
                 }
                 int child_status;
-                int wait_return = wait(&child_status);
+                int wait_return = waitpid(pid, &child_status, 0);
                 if (wait_return > 0){
                         return WEXITSTATUS(child_status);
-                }else
-                {
+                }else{
                         fprintf(stderr, "error: %s\n", strerror(errno));
                         return -1;
                 }
