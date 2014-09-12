@@ -229,7 +229,10 @@ int find_file_to_exec(char **args, int pipes[][2], int program_count, int progra
 {
         char *file_name = args[0];
         if (access(file_name, X_OK) != -1){
-                return execute(file_name, args, pipes, program_count, program_no);
+                if (execute(file_name, args, pipes, program_count, program_no) == 0)
+                        return 0;
+                else
+                        return -1;
         }else{
                 int i;
                 for (i = 0; i < number_of_paths; ++i){
@@ -237,6 +240,7 @@ int find_file_to_exec(char **args, int pipes[][2], int program_count, int progra
                         if (path_and_file_name == NULL){
                                 fprintf(stderr, "error: %s\n", strerror(errno));
                         }
+                        path_and_file_name[0] = '\0';
                         strcat(path_and_file_name, paths[i]);
                         strcat(path_and_file_name, "/");
                         strcat(path_and_file_name, file_name);
@@ -259,12 +263,12 @@ int multi_find_file_to_exec(char **args, int number_of_args)
         int program_count = 0;
         int i;
         int pipes[500][2];
-        char **program_args[500];
+        int program_heads[500];
         for (i = 0; i < number_of_args + 1; ++i){
                 if (i == number_of_args || !strcmp("|", args[i])){
                         free(args[i]);
                         args[i] = NULL;
-                        program_args[program_count] = args + last_seperate + 1;
+                        program_heads[program_count] = last_seperate + 1;
                         last_seperate = i;
                         program_count++;
                 }
@@ -274,7 +278,7 @@ int multi_find_file_to_exec(char **args, int number_of_args)
                 //error
         }
         for (i = 0; i < program_count; ++i){
-                if (find_file_to_exec(program_args[i], pipes, program_count, i) != 0)
+                if (find_file_to_exec(args + program_heads[i], pipes, program_count, i) != 0)
                         return -1;
         }
         //clear pipes
@@ -340,7 +344,8 @@ int main(int argc, char **argv)
                  */
                 int i;
                 for (i = 0; i < number_of_args; ++i){
-                        free(args[i]);
+                        if (args[i] != NULL)
+                                free(args[i]);
                         args[i] = NULL;
                 }
                 free(input_string);
