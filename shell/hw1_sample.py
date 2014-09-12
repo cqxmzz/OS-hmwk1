@@ -58,8 +58,8 @@ class HomeworkOneTester():
 
     def _close_shell(self):
         assert(self.p)
-        if self.p.isalive():
-            self.p.sendline("exit")
+        #if self.p.isalive():
+        self.p.sendline("exit")
         sleep(.1)
         if self.p.isalive():
             self.p.kill(9)
