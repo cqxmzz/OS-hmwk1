@@ -21,7 +21,10 @@ char *read_line()
         int input_length = 0;
         int temp_length = 0;
         do {
-                fgets(temp_buffer, chunk, stdin);
+                if (fgets(temp_buffer, chunk, stdin) == NULL){
+                        fprintf(stderr, "error: %s\n", "Get unexpected character");
+                        exit(-1);
+                }
                 temp_length = strlen(temp_buffer);
                 input_length += temp_length;
                 if (input_string == NULL) {
@@ -51,17 +54,33 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
         *number_of_args = 0;
         int i;
         for (i = 0; i < strlen(input_string) + 1; ++i){
-                if (input_string[i] == ' ' || i == strlen(input_string)){
-                        char *arg = (char *)malloc((i - former_space) * sizeof(char));
-                        if (arg == NULL){
-                                fprintf(stderr, "error: %s\n", strerror(errno));
-                                return -1;
+                if (input_string[i] == ' ' || input_string[i] == '\t' || input_string[i] == '|' || i == strlen(input_string)){
+                        if (i == former_space + 1)
+                                former_space++;
+                        else{
+                                char *arg = (char *)malloc((i - former_space) * sizeof(char));
+                                if (arg == NULL){
+                                        fprintf(stderr, "error: %s\n", strerror(errno));
+                                        return -1;
+                                }
+                                args[*number_of_args] = arg;
+                                (*number_of_args)++;
+                                strncpy (arg, input_string + former_space + 1, i - former_space - 1);
+                                arg[i - former_space - 1] = '\0';
+                                former_space = i;
                         }
-                        args[*number_of_args] = arg;
-                        (*number_of_args)++;
-                        strncpy (arg, input_string + former_space + 1, i - former_space - 1);
-                        arg[i - former_space - 1] = '\0';
-                        former_space = i;
+                        if (input_string[i] == '|'){
+                                char *arg = (char *)malloc(2 * sizeof(char));
+                                if (arg == NULL){
+                                        fprintf(stderr, "error: %s\n", strerror(errno));
+                                        return -1;
+                                }
+                                args[*number_of_args] = arg;
+                                (*number_of_args)++;
+                                strncpy (arg, input_string + i, 1);
+                                arg[1] = '\0';
+                                former_space = i;
+                        }
                 }
                 if (*number_of_args == MAX_NUMBER_OF_ARGS - 1){
                         fprintf(stderr, "error: %s\n", "Too many arguments");
@@ -181,18 +200,20 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
         if (pid == 0){
                 int pipe_in = -1;
                 int pipe_out = -1;
+                int fd_in = -1;
+                int fd_out = -1;
                 if (program_no != 0){
                         pipe_in = pipes[program_no - 1][0];
-                        close(fileno(stdin));
-                        dup2(pipe_in, fileno(stdin));
+                        close(STDIN_FILENO);
+                        fd_in = dup2(pipe_in, STDIN_FILENO);
                 }
                 if (program_no != program_count - 1){
                         pipe_out = pipes[program_no][1];
-                        close(fileno(stdout));
-                        dup2(pipe_out, fileno(stdout));
+                        close(STDOUT_FILENO);
+                        fd_out = dup2(pipe_out, STDOUT_FILENO);
                 }
                 int i;
-                for (i = 0; i < program_no - 1; ++i){
+                for (i = 0; i < program_count - 1; ++i){
                         if (pipes[i][0] != pipe_in)
                                 close(pipes[i][0]);
                         if (pipes[i][1] != pipe_out)
@@ -200,13 +221,24 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
                 }
                 if (execv(file_name, args) == -1)
                 {
+                        if (pipe_in != -1) close(pipe_in);
+                        if (pipe_out != -1) close(pipe_out);
+                        if (fd_in != -1) close(fd_in);
+                        if (fd_out != -1) close(fd_out);
                         fprintf(stderr, "error: %s\n", strerror(errno));
                         exit(-1);
-                }else
+                }else{
+                        if (pipe_in != -1) close(pipe_in);
+                        if (pipe_out != -1) close(pipe_out);
+                        if (fd_in != -1) close(fd_in);
+                        if (fd_out != -1) close(fd_out);
                         exit(0);
+                }
         }else if (pid > 0){
+                if (program_no < program_count - 1)
+                        return 0;
                 int i;
-                for (i = 0; i < program_no - 1; ++i){
+                for (i = 0; i < program_count - 1; ++i){
                         close(pipes[i][0]);
                         close(pipes[i][1]);
                 }
@@ -294,16 +326,6 @@ int main(int argc, char **argv)
                 if (input_string == NULL)
                         continue;
                 /*
-                 * exit case
-                 */
-                if (!strcmp(input_string, "exit"))
-                        exit(EXIT_SUCCESS);
-                /*
-                 * empty line
-                 */
-                if (!strcmp(input_string, ""))
-                        continue;
-                /*
                  * parsing
                  */
                 int number_of_args;
@@ -312,6 +334,16 @@ int main(int argc, char **argv)
                 if (parse_return != 0){
                         continue;
                 }
+                /*
+                 * empty line
+                 */
+                if (args[0] == NULL || !strcmp(args[0], ""))
+                        continue;
+                /*
+                 * exit case
+                 */
+                if (!strcmp(args[0], "exit"))
+                        exit(EXIT_SUCCESS);
                 /*
                  * cd
                  */

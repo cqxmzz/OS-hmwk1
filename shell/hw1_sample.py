@@ -51,14 +51,15 @@ class HomeworkOneTester():
             print >> sys.stderr, \
                 "fatal: cannot match prompt text. cannot proceed!"
             sys.exit(1)
-	if ret == 1:
-		print "Program exits without any prompt $"
-		sys.exit(1)
+        if ret == 1:
+                print "Program exits without any prompt $"
+                sys.exit(1)
         self.p = p
 
     def _close_shell(self):
         assert(self.p)
-        self.p.sendline("exit")
+        if self.p.isalive():
+            self.p.sendline("exit")
         sleep(.1)
         if self.p.isalive():
             self.p.kill(9)
@@ -142,6 +143,7 @@ class HomeworkOneTester():
         self.test_results = []
         self._spawn_shell()
         for test in self.test_cases:
+            print test
             if not test['continuation']:
                 self._close_shell()
                 self._spawn_shell()
