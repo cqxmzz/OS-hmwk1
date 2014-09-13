@@ -1,0 +1,143 @@
+########################
+
+Name:	A simple shell for OS homework 1
+Author:	Qiming Chen (qc2195@columbia.edu)
+
+########################
+
+Run:
+
+1. To compile: In the terminal, move to the directory mhwk1/shell/ of the project, run the command "make", then the shell.c source file will compile to w4118_sh
+
+2. To run the shell, you can run the command "./w4118_sh"
+
+3. Now you are in the shell, enjoy!
+
+########################
+
+Test Run (the prompt is "$"):
+
+$path + /bin
+$path
+/bin
+$path + /usr/bin
+$path
+/bin:/usr/bin
+$ls
+Makefile	README		checkpatch.pl	hw1_sample.py	shell.c		shell.o		w4118_sh
+$ls | wc
+       7       7      69
+$path - /bin
+$path
+/usr/bin
+$ls
+error: No such file or directory
+$exit
+
+
+########################
+
+Functionality:
+
+0. The shell can read a line of command from standard input, execute the command and wait for it to finish
+
+1. The shell will exit when it receives the command "exit", also when input EOF.
+
+2. Command and arguments shall be separated by spaces and/or tabs.
+
+3. Command can be any length but there is an maximum amount of arguments: 500
+
+4. Command cd will change the directory, for example: "cd /bin" will set the directory to /bin
+
+5. The shell will keep track of a set of paths, which initially set to be empty, "path" will show the paths separated by colons
+
+6. To add or delete a path, use "path + /some/dir" or "path - /some/dir"
+
+7. The shell is capable of executing a sequence of programs that communicate through a pipe, and the former one can pipe the output as input to the following one, see Test Run
+
+########################
+
+Error Handling
+
+When input an non functional command or the system encounters failure, there will be error messages
+
+For example:
+
+1. A bad formed command
+2. System cannot allocate enough space
+3. Fail to change directory
+4. Cannot find command to execute
+5. Execution of a command failed
+6. Pipe fail when programs communicate
+
+Errors will be handled out of the form : "error: The_Detail_About_The_Error"
+
+########################
+
+Code Structure
+
+All code lies in the shell.c file
+
+1. int report_error(int return_value, char *error_message) 
+handles reporting the error, errorno is returned, and error message will be output to stderr
+
+2. char *read_line()
+helps to read line from standard input
+
+3. int parse(char *input_string, int max_number_of_args, char *args[], int *number_of_args)
+helps to parse the input string to args, max number of args is set as 500, number of args will reflect how many args are there
+return 0 when succeed, -1 when failed
+
+4. int cd(char *path)
+helps to perform a directory change
+return 0 when succeed, -1 when failed
+
+5. int show_paths(void)
+helps to show the shell paths
+
+6. int add_path(char *path)
+helps to add a path to the path list
+return 0 when succeed, -1 when failed
+
+7. int delete_path(char *path)
+helps to delete a path from the path list
+return 0 when succeed, -1 when failed
+
+8. int multi_find_file_to_exec(char **args, int number_of_args)
+will execute a program stated in the command or multiple programs
+return 0 when succeed, -1 when failed
+
+9. int find_file_to_exec(char **args, int pipes[][2], int program_count, int program_no)
+is used to execute a single program, the list of paths will be searched to find the program
+return 0 when succeed, -1 when failed
+
+10. int execute(char *file_name, char **args, int pipes[][2], int program_count, int program_no)
+is used to execute a single program located at a certain path
+return 0 when succeed, -1 when failed
+
+11. void free_memory(char **args, char *input_string, int number_of_args)
+is used to free memory after each command run
+
+12. int main(int argc, char **argv)
+is the main function executing the shell
+
+########################
+
+Some Design Choice
+
+1. the space to store input_string will be dynamically allocated to support input of any length
+2. multiple spaces/tabs will be supported by the parser
+3. when a path is added, the shell will check the list to see if it is already in the list, and also check the availability of the path
+4. when executing multiple programs, the shell process will fork multiple child processes and wait for the last one to quit
+
+########################
+
+Work Flow
+
+read_line -> parse -> if command is exit : exit
+					else if command is cd : change directory
+					else if command is path etc. : perform path actions
+					else: execute the program
+-> back to the top
+
+########################

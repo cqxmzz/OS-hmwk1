@@ -6,6 +6,8 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #define MAX_NUMBER_OF_ARGS 500
 
@@ -116,12 +118,13 @@ int show_paths(void)
 
 int add_path(char *path)
 {
+	struct stat s;
 	int i;
 
 	if (path == NULL)
-		return report_error(-1, "Path not exist");
-	if (path == NULL)
 		return report_error(-1, "Bad path");
+	if (stat(path, &s) == -1 || !S_ISDIR(s.st_mode))
+		return report_error(-1, NULL);
 	for (i = 0; i < number_of_paths; ++i) {
 		if (!strcmp(path, paths[i]))
 			return report_error(-1, "Path existed");
@@ -281,7 +284,7 @@ int find_file_to_exec(char **args, int pipes[][2], int program_count, int progra
 		}
 	}
 	errno = ENOENT;
-	return report_error(-2, NULL);
+	return report_error(-1, NULL);
 }
 
 int multi_find_file_to_exec(char **args, int number_of_args)
