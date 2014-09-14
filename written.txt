@@ -1,0 +1,57 @@
+1. Exercise 1.8 (Chapter 1, Exercise 8)
+I would design a system(software) to simulate the behavior of a set of computer hardware, for example: a CPU, memory and disk. Then, run a child operating system in total control. If the child operating system makes a call to interact with the hardware, my system will catch the call and execute it in the simulated hardwares. For example, a call to do a add operation will be caught by my system and it will calculate the result and return it to the child system. And a call to access the memory will be handled by accessing the simulated memory. A call to access the disk will be handled by my system too. Though the add operation is still completed by my machine hardware, the simulated memory will probably be in my machine memory and disk, but the child operating system will never know. It is like having a layer of virtualization, the child will not know that "he lives in the matrix".
+
+2. Exercise 1.13
+I am currently using a macbook pro laptop running a MAC OS X operating system.
+I think, for a personal computer, the system designers should prioritize security first, because a lot of personal information and/or business information will be on the personal computer, information lost will cause loss to the user.
+Second, I would prioritize reliability, because without reliability, the operating system will not do what the user wants it to do. It might not cause loss to the user, but a system that crashes a lot will be unusable.
+Third, I would say performance, performance is associated to user experience and efficiency to accomplish the job. If the response time is too long, user will feel uncomfortable waiting the system to react. If the throughput is low, the user will cost a lot of time to wait for a task to finish. The performance issue won't hurt the user much, and usually won't make the computer to be unusable, so it's placed on the third.
+Next, I would say portability. The hardware improves year over year, and with high portability, the developers won't have to write the entire system again when they need to upgrade the hardware. And the abstraction it provide to the applications shall be the same. Portability will benefit the developers, but a regular user won't appreciate the portability of a system.
+Last, I would say adoption. Actually the Mac OS doesn't support many different hardware, and Apple sell the hardware that support the system. But the adoption didn't suffer much due to Macbook's perfection on other aspects. And there are more and more applications ported to Mac.
+
+3. Exercise 3.1
+The fork will and should return an error, creating a new process is not that easy. The operating system might control the maximum amount of processes. A more extreme situation would be, the computer might have no free space to store the information of the process. Even more extreme, a call may fail due to a arbitrary fault of the hardware. Thus, a fork system call will definitely be able to return error, and so it says on the manual page: 
+
+"Upon successful completion, fork() returns a value of 0 to the child process and returns the process ID of the child process to the parent process.  Otherwise, a value of -1 is returned to the parent process, no child process is created, and the global variable errno is set to indicate the error."
+
+"Fork() will fail and no child process will be created if:
+The system-imposed limit on the total number of processes under execution would be exceeded.  This limit is configuration-dependent.
+The system-imposed limit MAXUPRC (<sys/param.h>) on the total number of processes under execution by a single user would be exceeded.
+There is insufficient swap space for the new process."
+
+Cite: manual page in my Mac OS Terminal
+
+4. Exercise 3.2
+The exec will and should return an error, running a process is much harder. There might not enough memory space or disk space, the program may through all kinds of errors such as "divided by zero", "bad memory address" or error defined by the program it self. Thus, a exec system call will definitely be able to return error, and so it says on the manual page: 
+
+"The execl(), execle(), execlp(), execvp(), and execvP() functions may fail and set errno for any of the errors specified for the library functions execve(2) and malloc(3).
+The execv() function may fail and set errno for any of the errors specified for the library function execve(2)."
+
+Cite: manual page in my Mac OS Terminal
+
+5. Exercise 3.3
+In the parent process the fork() will return a positive integer upon successful execution, and in the child process the fork() will return 0. So the parent and child process will continue on generating new processes, so do the new generated processes. Until soon the maximum number of processes is reached, some processes will break the while loop and exit, but this will cause other processes to keep on generating child processes, and this will go on and on. Unless the memory is full, or the system cannot handle the crazy act, the system might hang or crush.
+
+6. Exercise 3.4
+The wait() will return immediately if the child process has already finished its execution. Or the child process finish immediately, I don't know will it count immediately after an "immediately".
+Says on the manual page: "If a child has already changed state, then these calls  return  immediately."
+
+Cite: manual page in my Mac OS Terminal
+
+7. Exercise 3.7
+It will run a ls program, showing the content under the current directory, and then print out a line: "[Process completed]"
+The shell it self is another process running the shell program, so the shell process will turn into running ls, and when the program finished, this process will end, and the shell will not turn back on.
+
+8. Exercise 3.8
+The parent process will run forkthem(5), and a new process will be created. Those two process will run forkthem(4), and two new processes will be created, and so on. forkthem(3) will create 4, forkthem(2) will create 8, forkthem(1) will create 16, and forkthem(0) will do nothing and return, the recursion will end. 1+2+4+8+16 = 31 processes will be created we run the program. But all those process will finish and exit at the end.
+
+9. Exercise 3.9
+First, a child process will be created and it's copy of x will be initialized to be 5, and added 5 to be 10, and that's is for this copy. In the parent process it will go to the other branch of the if condition, another child will be created, the two copies of x will be added 10, and for the parent process, it will go to to inner if, and x will be added another 5. So there will be 3 copies of x, they will be 10, 15 and 20.
+
+10. Exercise 3.10
+Program1: There will be two copies of val, and the child process will be added 1 and printed out, then the waiting parent process will then do the same, so the output will be :
+6
+6
+
+Program2: There will be two copies of val, and the child process will exit when it goes to the other branch of the if condition, the parent process will wait for the child process to exit, the val will be added 1 and printed out, so the output will be:
+6
