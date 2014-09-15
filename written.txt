@@ -30,7 +30,7 @@ The execv() function may fail and set errno for any of the errors specified for 
 Cite: manual page in my Mac OS Terminal
 
 5. Exercise 3.3
-In the parent process the fork() will return a positive integer upon successful execution, and in the child process the fork() will return 0. So the parent and child process will continue on generating new processes, so do the new generated processes. Until soon the maximum number of processes is reached, some processes will break the while loop and exit, but this will cause other processes to keep on generating child processes, and this will go on and on. Unless the memory is full, or the system cannot handle the crazy act, the system might hang or crush.
+In the parent process the fork() will return a positive integer upon successful execution, and in the child process the fork() will return 0. So the parent and child process will continue on generating new processes, so do the new generated processes. Until soon the maximum number of processes is reached, some processes will break the while loop and exit, but this will cause other processes to keep on successfully generating child processes, and this will go on and on. Unless the memory is full, or the system cannot handle the crazy act, the system might hang or crush.
 
 6. Exercise 3.4
 The wait() will return immediately if the child process has already finished its execution. Or the child process finish immediately, I don't know will it count immediately after an "immediately".
@@ -43,7 +43,7 @@ It will run a ls program, showing the content under the current directory, and t
 The shell it self is another process running the shell program, so the shell process will turn into running ls, and when the program finished, this process will end, and the shell will not turn back on.
 
 8. Exercise 3.8
-The parent process will run forkthem(5), and a new process will be created. Those two process will run forkthem(4), and two new processes will be created, and so on. forkthem(3) will create 4, forkthem(2) will create 8, forkthem(1) will create 16, and forkthem(0) will do nothing and return, the recursion will end. 1+2+4+8+16 = 31 processes will be created we run the program. But all those process will finish and exit at the end.
+The parent process will run forkthem(5), and a new process will be created. Those two process will run forkthem(4), and two new processes will be created, and so on. forkthem(3) will create 4, forkthem(2) will create 8, forkthem(1) will create 16, and forkthem(0) will do nothing and return, the recursion will end. 1+2+4+8+16 = 31 processes will be created we run the program, and there are 32 processes including the main process. But all those process will finish and exit at the end.
 
 9. Exercise 3.9
 First, a child process will be created and it's copy of x will be initialized to be 5, and added 5 to be 10, and that's is for this copy. In the parent process it will go to the other branch of the if condition, another child will be created, the two copies of x will be added 10, and for the parent process, it will go to to inner if, and x will be added another 5. So there will be 3 copies of x, they will be 10, 15 and 20.
