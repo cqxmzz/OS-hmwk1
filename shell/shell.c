@@ -9,10 +9,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define MAX_NUMBER_OF_ARGS 500
-
 int number_of_paths = 0;
 char **paths = NULL;
+char **args = NULL;
 int path_capacity = 0;
 
 int report_error(int return_value, char *error_message)
@@ -45,7 +44,7 @@ char *read_line()
 			}
 			input_string[0] = '\0';
 		} else {
-			input_string = realloc(input_string, input_length + 1);
+			input_string = realloc(input_string, (input_length + 1) * sizeof(char));
 			if (input_string == NULL) {
 				report_error(-1, NULL);
 				return NULL;
@@ -57,13 +56,15 @@ char *read_line()
 	return input_string;
 }
 
-int parse(char *input_string, int max_number_of_args, char *args[], int *number_of_args)
+int parse(char *input_string, int *number_of_args)
 {
 	int former_space = -1;
 	*number_of_args = 0;
 	int i;
 	char *arg;
-
+	if (args == NULL){
+		args = malloc(sizeof(char*));
+	}
 	for (i = 0; i < strlen(input_string) + 1; ++i) {
 		if (input_string[i] == ' ' || input_string[i] == '\t' || input_string[i] == '|' || i == strlen(input_string)) {
 			if (i == former_space + 1)
@@ -71,6 +72,9 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
 			else {
 				arg = (char *)malloc((i - former_space) * sizeof(char));
 				if (arg == NULL)
+					return report_error(-1, NULL);
+				args = realloc(args, (*number_of_args + 1) * sizeof(char*));
+				if (args == NULL)
 					return report_error(-1, NULL);
 				args[*number_of_args] = arg;
 				(*number_of_args)++;
@@ -82,6 +86,9 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
 				arg = (char *)malloc(2 * sizeof(char));
 				if (arg == NULL)
 					return report_error(-1, NULL);
+				args = realloc(args, (*number_of_args + 1) * sizeof(char*));
+				if (args == NULL)
+					return report_error(-1, NULL);
 				args[*number_of_args] = arg;
 				(*number_of_args)++;
 				strncpy(arg, input_string + i, 1);
@@ -89,9 +96,10 @@ int parse(char *input_string, int max_number_of_args, char *args[], int *number_
 				former_space = i;
 			}
 		}
-		if (*number_of_args == MAX_NUMBER_OF_ARGS - 1)
-			return report_error(-1, "Too many arguments");
 	}
+	args = realloc(args, (*number_of_args + 1) * sizeof(char*));
+	if (args == NULL)
+		return report_error(-1, NULL);
 	args[*number_of_args] = NULL;
 	return 0;
 }
@@ -136,17 +144,9 @@ int add_path(char *path)
 			report_error(-1, NULL);
 	}
 	if (number_of_paths != 0 && number_of_paths == path_capacity) {
-		char **temp_paths = (char **)malloc(2 * number_of_paths * sizeof(char *));
-		int i;
-
+		paths = realloc(paths, 2 * number_of_paths * sizeof(char *));
 		if (paths == NULL)
 			report_error(-1, NULL);
-		for (i = 0; i < number_of_paths; ++i)
-			temp_paths[i] = paths[i];
-		for (i = number_of_paths; i < 2 * number_of_paths; ++i)
-			temp_paths[i] = NULL;
-		free(paths);
-		paths = temp_paths;
 		path_capacity *= 2;
 	}
 	paths[number_of_paths] = (char *)malloc(sizeof(char) * strlen(path));
@@ -183,7 +183,7 @@ int delete_path(char *path)
 	return 0;
 }
 
-int execute(char *file_name, char **args, int pipes[][2], int program_count, int program_no)
+int execute(char *file_name, char **args_in, int pipes[][2], int program_count, int program_no)
 {
 	int pid = fork();
 
@@ -217,7 +217,7 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
 				if (close(pipes[i][1]) == -1)
 					return report_error(-1, NULL);
 		}
-		execute_return = execv(file_name, args);
+		execute_return = execv(file_name, args_in);
 		if (pipe_in != -1)
 			if (close(pipe_in) == -1)
 				return report_error(-1, NULL);
@@ -256,15 +256,16 @@ int execute(char *file_name, char **args, int pipes[][2], int program_count, int
 	return report_error(-1, NULL);
 }
 
-int find_file_to_exec(char **args, int pipes[][2], int program_count, int program_no)
+int find_file_to_exec(char **args_in, int pipes[][2], int program_count, int program_no)
 {
-	char *file_name = args[0];
+
+	char *file_name = args_in[0];
 	int i;
 	int execute_return;
 	char *path_and_file_name;
 
 	if (access(file_name, X_OK) != -1) {
-		if (execute(file_name, args, pipes, program_count, program_no) == 0)
+		if (execute(file_name, args_in, pipes, program_count, program_no) == 0)
 			return 0;
 		return -1;
 	}
@@ -278,7 +279,7 @@ int find_file_to_exec(char **args, int pipes[][2], int program_count, int progra
 		strcat(path_and_file_name, file_name);
 		if (access(path_and_file_name, X_OK) != -1) {
 			file_name = path_and_file_name;
-			execute_return = execute(file_name, args, pipes, program_count, program_no);
+			execute_return = execute(file_name, args_in, pipes, program_count, program_no);
 			free(file_name);
 			return execute_return;
 		}
@@ -287,13 +288,13 @@ int find_file_to_exec(char **args, int pipes[][2], int program_count, int progra
 	return report_error(-1, NULL);
 }
 
-int multi_find_file_to_exec(char **args, int number_of_args)
+int multi_find_file_to_exec(int number_of_args)
 {
 	int last_seperate = -1;
 	int program_count = 0;
 	int i;
-	int pipes[500][2];
-	int program_heads[500];
+	int pipes[number_of_args][2];
+	int program_heads[number_of_args];
 
 	for (i = 0; i < number_of_args + 1; ++i) {
 		if (i == number_of_args || !strcmp("|", args[i])) {
@@ -319,7 +320,7 @@ int multi_find_file_to_exec(char **args, int number_of_args)
 	return 0;
 }
 
-void free_memory(char **args, char *input_string, int number_of_args)
+void free_memory(char *input_string, int number_of_args)
 {
 	int i;
 
@@ -337,7 +338,6 @@ int main(int argc, char **argv)
 	while (1) {
 		char *input_string = NULL;
 		int number_of_args;
-		char *args[MAX_NUMBER_OF_ARGS];
 		int parse_return;
 
 		printf("$");
@@ -347,23 +347,23 @@ int main(int argc, char **argv)
 		/*
 		 * parsing
 		 */
-		parse_return = parse(input_string, MAX_NUMBER_OF_ARGS, args, &number_of_args);
+		parse_return = parse(input_string, &number_of_args);
 		if (parse_return != 0) {
-			free_memory(args, input_string, number_of_args);
+			free_memory(input_string, number_of_args);
 			continue;
 		}
 		/*
 		 * empty line
 		 */
 		if (args[0] == NULL || !strcmp(args[0], "")) {
-			free_memory(args, input_string, number_of_args);
+			free_memory(input_string, number_of_args);
 			continue;
 		}
 		/*
 		 * exit case
 		 */
 		if (!strcmp(args[0], "exit")) {
-			free_memory(args, input_string, number_of_args);
+			free_memory(input_string, number_of_args);
 			break;
 		}
 		/*
@@ -371,7 +371,7 @@ int main(int argc, char **argv)
 		 */
 		if (!strcmp(args[0], "cd")) {
 			cd(args[1]);
-			free_memory(args, input_string, number_of_args);
+			free_memory(input_string, number_of_args);
 			continue;
 		}
 		/*
@@ -386,14 +386,14 @@ int main(int argc, char **argv)
 				delete_path(args[2]);
 			else
 				report_error(-1, "Path command error");
-			free_memory(args, input_string, number_of_args);
+			free_memory(input_string, number_of_args);
 			continue;
 		}
 		/*
 		 * execute
 		 */
-		multi_find_file_to_exec(args, number_of_args);
-		free_memory(args, input_string, number_of_args);
+		multi_find_file_to_exec(number_of_args);
+		free_memory(input_string, number_of_args);
 	}
 	return 0;
 }
