@@ -37,14 +37,16 @@ char *read_line()
 		temp_length = strlen(temp_buffer);
 		input_length += temp_length;
 		if (input_string == NULL) {
-			input_string = malloc((input_length + 1) * sizeof(char));
+			input_string = malloc((input_length + 1)
+				* sizeof(char));
 			if (input_string == NULL) {
 				report_error(-1, NULL);
 				return NULL;
 			}
 			input_string[0] = '\0';
 		} else {
-			input_string = realloc(input_string, (input_length + 1) * sizeof(char));
+			input_string = realloc(input_string, (input_length + 1)
+				* sizeof(char));
 			if (input_string == NULL) {
 				report_error(-1, NULL);
 				return NULL;
@@ -62,23 +64,27 @@ int parse(char *input_string, int *number_of_args)
 	*number_of_args = 0;
 	int i;
 	char *arg;
-	if (args == NULL){
-		args = malloc(sizeof(char*));
-	}
+
+	if (args == NULL)
+		args = malloc(sizeof(char *));
 	for (i = 0; i < strlen(input_string) + 1; ++i) {
-		if (input_string[i] == ' ' || input_string[i] == '\t' || input_string[i] == '|' || i == strlen(input_string)) {
+		if (input_string[i] == ' ' || input_string[i] == '\t' ||
+			input_string[i] == '|' || i == strlen(input_string)) {
 			if (i == former_space + 1)
 				former_space++;
 			else {
-				arg = (char *)malloc((i - former_space) * sizeof(char));
+				arg = (char *)malloc((i - former_space)
+					* sizeof(char));
 				if (arg == NULL)
 					return report_error(-1, NULL);
-				args = realloc(args, (*number_of_args + 1) * sizeof(char*));
+				args = realloc(args, (*number_of_args + 1)
+					* sizeof(char *));
 				if (args == NULL)
 					return report_error(-1, NULL);
 				args[*number_of_args] = arg;
 				(*number_of_args)++;
-				strncpy(arg, input_string + former_space + 1, i - former_space - 1);
+				strncpy(arg, input_string + former_space + 1,
+					i - former_space - 1);
 				arg[i - former_space - 1] = '\0';
 				former_space = i;
 			}
@@ -86,7 +92,8 @@ int parse(char *input_string, int *number_of_args)
 				arg = (char *)malloc(2 * sizeof(char));
 				if (arg == NULL)
 					return report_error(-1, NULL);
-				args = realloc(args, (*number_of_args + 1) * sizeof(char*));
+				args = realloc(args, (*number_of_args + 1)
+					* sizeof(char *));
 				if (args == NULL)
 					return report_error(-1, NULL);
 				args[*number_of_args] = arg;
@@ -97,7 +104,7 @@ int parse(char *input_string, int *number_of_args)
 			}
 		}
 	}
-	args = realloc(args, (*number_of_args + 1) * sizeof(char*));
+	args = realloc(args, (*number_of_args + 1) * sizeof(char *));
 	if (args == NULL)
 		return report_error(-1, NULL);
 	args[*number_of_args] = NULL;
@@ -183,10 +190,14 @@ int delete_path(char *path)
 	return 0;
 }
 
-int execute(char *file_name, char **args_in, int pipes[][2], int program_count, int program_no)
+int execute(char *file_name, char **args_in, int pipes[][2], int program_count,
+	int program_no)
 {
 	int pid = fork();
 
+	/*
+	 * Child process
+	 */
 	if (pid == 0) {
 		int pipe_in = -1;
 		int pipe_out = -1;
@@ -194,6 +205,9 @@ int execute(char *file_name, char **args_in, int pipes[][2], int program_count, 
 		int fd_out = -1;
 		int i;
 		int execute_return;
+		/*
+		 * Dup pipes and close pipes
+		 */
 		if (program_no != 0) {
 			pipe_in = pipes[program_no - 1][0];
 			close(STDIN_FILENO);
@@ -216,6 +230,9 @@ int execute(char *file_name, char **args_in, int pipes[][2], int program_count, 
 				if (close(pipes[i][1]) == -1)
 					report_error(-1, NULL);
 		}
+		/*
+		 * Execute and close pipe if fail
+		 */
 		execute_return = execv(file_name, args_in);
 		if (pipe_in != -1)
 			if (close(pipe_in) == -1)
@@ -235,6 +252,9 @@ int execute(char *file_name, char **args_in, int pipes[][2], int program_count, 
 		}
 		exit(0);
 	} else if (pid > 0) {
+		/*
+		 * Parent process close pipes don't use
+		 */
 		int child_status;
 		int wait_return;
 
@@ -254,7 +274,8 @@ int execute(char *file_name, char **args_in, int pipes[][2], int program_count, 
 	return report_error(-1, NULL);
 }
 
-int find_file_to_exec(char **args_in, int pipes[][2], int program_count, int program_no)
+int find_file_to_exec(char **args_in, int pipes[][2], int program_count,
+	int program_no)
 {
 	char *file_name = args_in[0];
 	int i;
@@ -262,12 +283,14 @@ int find_file_to_exec(char **args_in, int pipes[][2], int program_count, int pro
 	char *path_and_file_name;
 
 	if (access(file_name, X_OK) != -1) {
-		if (execute(file_name, args_in, pipes, program_count, program_no) == 0)
+		if (execute(file_name, args_in, pipes, program_count,
+			program_no) == 0)
 			return 0;
 		return -1;
 	}
 	for (i = 0; i < number_of_paths; ++i) {
-		path_and_file_name = malloc((strlen(paths[i]) + strlen(file_name) + 1) * sizeof(char));
+		path_and_file_name = malloc((strlen(paths[i])
+			+ strlen(file_name) + 1) * sizeof(char));
 		if (path_and_file_name == NULL)
 			report_error(-1, NULL);
 		path_and_file_name[0] = '\0';
@@ -276,7 +299,8 @@ int find_file_to_exec(char **args_in, int pipes[][2], int program_count, int pro
 		strcat(path_and_file_name, file_name);
 		if (access(path_and_file_name, X_OK) != -1) {
 			file_name = path_and_file_name;
-			execute_return = execute(file_name, args_in, pipes, program_count, program_no);
+			execute_return = execute(file_name, args_in, pipes,
+				program_count, program_no);
 			free(file_name);
 			return execute_return;
 		}
@@ -309,7 +333,8 @@ int multi_find_file_to_exec(int number_of_args)
 			return report_error(-1, NULL);
 	}
 	for (i = 0; i < program_count; ++i) {
-		if (find_file_to_exec(args + program_heads[i], pipes, program_count, i) != 0)
+		if (find_file_to_exec(args + program_heads[i], pipes,
+			program_count, i) != 0)
 			return -1;
 	}
 	for (i = 0; i < program_count - 1; ++i) {
