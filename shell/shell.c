@@ -91,7 +91,7 @@ int parse(char *input_string, int *number_of_args)
 					return report_error(-1, NULL);
 				args[*number_of_args] = arg;
 				(*number_of_args)++;
-				strncpy(arg, input_string + i, 1);
+				arg[0] = '|';
 				arg[1] = '\0';
 				former_space = i;
 			}
@@ -194,7 +194,6 @@ int execute(char *file_name, char **args_in, int pipes[][2], int program_count, 
 		int fd_out = -1;
 		int i;
 		int execute_return;
-
 		if (program_no != 0) {
 			pipe_in = pipes[program_no - 1][0];
 			close(STDIN_FILENO);
@@ -210,43 +209,42 @@ int execute(char *file_name, char **args_in, int pipes[][2], int program_count, 
 				report_error(-1, NULL);
 		}
 		for (i = 0; i < program_count - 1; ++i) {
-			if (pipes[i][0] != pipe_in)
+			if (pipes[i][0] != pipe_in && pipes[i][0] != -1)
 				if (close(pipes[i][0]) == -1)
-					return report_error(-1, NULL);
-			if (pipes[i][1] != pipe_out)
+					report_error(-1, NULL);
+			if (pipes[i][1] != pipe_out && pipes[i][1] != -1)
 				if (close(pipes[i][1]) == -1)
-					return report_error(-1, NULL);
+					report_error(-1, NULL);
 		}
 		execute_return = execv(file_name, args_in);
 		if (pipe_in != -1)
 			if (close(pipe_in) == -1)
-				return report_error(-1, NULL);
+				report_error(-1, NULL);
 		if (pipe_out != -1)
 			if (close(pipe_out) == -1)
-				return report_error(-1, NULL);
+				report_error(-1, NULL);
 		if (fd_in != -1)
 			if (close(fd_in) == -1)
-				return report_error(-1, NULL);
+				report_error(-1, NULL);
 		if (fd_out != -1)
 			if (close(fd_out) == -1)
-				return report_error(-1, NULL);
+				report_error(-1, NULL);
 		if (execute_return == -1) {
 			report_error(-1, NULL);
 			exit(-1);
 		}
 		exit(0);
 	} else if (pid > 0) {
-		int i;
 		int child_status;
 		int wait_return;
 
-		if (program_no < program_count - 1)
-			return 0;
-		for (i = 0; i < program_count - 1; ++i) {
-			if (close(pipes[i][0]) == -1)
-				return report_error(-1, NULL);
-			if (close(pipes[i][1]) == -1)
-				return report_error(-1, NULL);
+		if (program_no != 0) {
+			close(pipes[program_no - 1][0]);
+			pipes[program_no - 1][0] = -1;
+		}
+		if (program_no != program_count - 1) {
+			close(pipes[program_no][1]);
+			pipes[program_no][1] = -1;
 		}
 		wait_return = waitpid(pid, &child_status, 0);
 		if (wait_return > 0)
@@ -258,7 +256,6 @@ int execute(char *file_name, char **args_in, int pipes[][2], int program_count, 
 
 int find_file_to_exec(char **args_in, int pipes[][2], int program_count, int program_no)
 {
-
 	char *file_name = args_in[0];
 	int i;
 	int execute_return;
@@ -300,6 +297,8 @@ int multi_find_file_to_exec(int number_of_args)
 		if (i == number_of_args || !strcmp("|", args[i])) {
 			free(args[i]);
 			args[i] = NULL;
+			if (i == last_seperate + 1)
+				return report_error(-1, "Bad command");
 			program_heads[program_count] = last_seperate + 1;
 			last_seperate = i;
 			program_count++;

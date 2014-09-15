@@ -128,7 +128,7 @@ Some Design Choice
 1. the space to store input_string will be dynamically allocated to support input of any length
 2. multiple spaces/tabs will be supported by the parser
 3. when a path is added, the shell will check the list to see if it is already in the list, and also check the availability of the path
-4. when executing multiple programs, the shell process will fork multiple child processes and wait for the last one to quit
+4. when executing multiple programs, the shell process will fork one child processes and wait for it to quit and then fork another one, the pipes will not be destroyed so that the information won't lost.
 
 ########################
 
